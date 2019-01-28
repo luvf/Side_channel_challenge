@@ -52,10 +52,12 @@ _file = "ASCAD.h5"
 
 def get_train_data(path='.'):
 	x, y =  load_ascad(os.path.join(path, 'data', _file))[0]
+	print(y)
 	return pd.DataFrame(x),y
 
 def get_test_data(path='.'):
-	X_attack, Y_attack = load_ascad( os.path.join(path, 'data', _file),load_metadata=True)[1]
+	X_attack, Y_attack = load_ascad( os.path.join(path, 'data', _file))[1]
+	print(Y_attack)
 	return pd.DataFrame(X_attack), Y_attack
 
 
@@ -86,15 +88,6 @@ def check_file_exists(file_path):
 		print("Error: provided file path '%s' does not exist!" % file_path)
 		sys.exit(-1)
 	return
-
-def load_sca_model(model_file):
-	check_file_exists(model_file)
-	try:
-		model = load_model(model_file)
-	except:
-		print("Error: can't load Keras model file '%s'" % model_file)
-		sys.exit(-1)
-	return model
 
 # Compute the rank of the real key for a give set of predictions
 
