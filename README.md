@@ -1,8 +1,8 @@
 # RAMP data on SCA Challenge
 
-Authors: Adrien Chuttarsing & Luca Veyrin - Forrer & Malik Kazi Aoual & Martin Baw &Nouredine Nour
-M2 AIC Datacamp 2018-2019
+Authors: Adrien Chuttarsing & Luca Veyrin - Forrer & Malik Kazi Aoual & Martin Baw & Nouredine Nour
 
+M2 AIC Datacamp 2018-2019
 
 
 Execute
