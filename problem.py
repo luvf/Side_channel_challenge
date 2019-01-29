@@ -29,18 +29,21 @@ workflow = rw.workflows.FeatureExtractorClassifier()
 #-----------------------------------------------------------------------
 # Define custom score metrics for the churner class
 class AUTR(BaseScoreType):
+
 	
 	def __init__(self, name='autr'):
 		self.name = name
 		self.accuracy = None
 		self.rankings = None
+		self.max_autr = 256 * 1000
 
 	def __call__(self, y_true, y_pred):
 		(_, Metadata_attack) = load_ascad( os.path.join(".", 'data', _file),load_metadata=True)[2]
 		autr_score, self.rankings = rannking(y_pred, Metadata_attack, len(Metadata_attack))
 		self.accuracy = accuracy_score(y_true, np.argmax(y_pred, axis=1))
-        
-		return autr_score
+
+		return autr_score/self.max_autr
+
 
 score = AUTR()
 
@@ -58,16 +61,12 @@ def _read_data(path, filename = "ASCAD.h5"):
 _file = "ASCAD.h5"
 
 def get_train_data(path='.'):
-	x, y =  load_ascad(os.path.join(path, 'data', _file))[0]
-	return pd.DataFrame(x),y
+	X, y =  load_ascad(os.path.join(path, 'data', _file))[0]
+	return pd.DataFrame(X),y
 
 def get_test_data(path='.'):
-	X_attack, Y_attack = load_ascad( os.path.join(path, 'data', _file))[1]
-	return pd.DataFrame(X_attack), Y_attack
-
-
-
-
+	X_test, y_test = load_ascad( os.path.join(path, 'data', _file))[1]
+	return pd.DataFrame(X_test), y_test
 
 AES_Sbox = np.array([
 			0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -88,6 +87,8 @@ AES_Sbox = np.array([
 			0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16
 			])
 
+
+
 def check_file_exists(file_path):
 	if os.path.exists(file_path) == False:
 		print("Error: provided file path '%s' does not exist!" % file_path)
@@ -95,13 +96,6 @@ def check_file_exists(file_path):
 	return
 
 # Compute the rank of the real key for a give set of predictions
-
-
-
-
-
-
-
 
 def load_ascad(ascad_database_file, load_metadata=False):
 	check_file_exists(ascad_database_file)
@@ -125,18 +119,12 @@ def load_ascad(ascad_database_file, load_metadata=False):
 		return (X_profiling, Y_profiling), (X_attack, Y_attack), (in_file['Profiling_traces/metadata'], in_file['Attack_traces/metadata'])
 
 
-
 def rannking(predictions, metadata, num_traces=2000):
 	# Load profiling and attack data and metadata from the ASCAD database
 	# Load model
 	# We test the rank over traces of the Attack dataset, with a step of 10 traces
 	ranks = full_ranks(predictions, metadata, 0, num_traces, 10)
 	return sum([ranks[i][1] for i in range(0, ranks.shape[0])]), ranks
-
-
-
-
-
 
 
 def full_ranks(predictions, metadata, min_trace_idx =0 , max_trace_idx=200, rank_step=10):
@@ -151,8 +139,6 @@ def full_ranks(predictions, metadata, min_trace_idx =0 , max_trace_idx=200, rank
 		real_key_rank, key_bytes_proba = rank(predictions[t-rank_step:t], metadata, real_key, t-rank_step, t, key_bytes_proba)
 		f_ranks[i] = [t - min_trace_idx, real_key_rank]
 	return f_ranks
-
-
 
 
 def rank(predictions, metadata, real_key, min_trace_idx, max_trace_idx, last_key_bytes_proba):
