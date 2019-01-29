@@ -11,7 +11,7 @@ import os.path
 import sys
 
 from sklearn.model_selection import StratifiedShuffleSplit
-from sklearn.metrics import precision_score, recall_score
+from sklearn.metrics import accuracy_score, recall_score
 
 from rampwf.score_types.base import BaseScoreType
 
@@ -24,23 +24,22 @@ Predictions = rw.prediction_types.make_multiclass(_prediction_label_names)
 
 # An object implementing the workflow
 
-
-
-
 workflow = rw.workflows.FeatureExtractorClassifier()
 
 #-----------------------------------------------------------------------
 # Define custom score metrics for the churner class
 class AUTR(BaseScoreType):
 	
-	def __init__(self, name='autr', precision=2):
+	def __init__(self, name='autr'):
 		self.name = name
-		self.precision = precision
+		self.accuracy = None
 		self.rankings = None
 
 	def __call__(self, y_true, y_pred):
 		(_, Metadata_attack) = load_ascad( os.path.join(".", 'data', _file),load_metadata=True)[2]
 		autr_score, self.rankings = rannking(y_pred, Metadata_attack, len(Metadata_attack))
+		self.accuracy = accuracy_score(y_true, np.argmax(y_pred, axis=1))
+        
 		return autr_score
 
 score = AUTR()
@@ -54,18 +53,16 @@ def get_cv(X, y):
 	return cv.split(X,y)
 
 def _read_data(path, filename = "ASCAD.h5"):
-	return
+	pass
 
 _file = "ASCAD.h5"
 
 def get_train_data(path='.'):
 	x, y =  load_ascad(os.path.join(path, 'data', _file))[0]
-	print(y)
 	return pd.DataFrame(x),y
 
 def get_test_data(path='.'):
 	X_attack, Y_attack = load_ascad( os.path.join(path, 'data', _file))[1]
-	print(Y_attack)
 	return pd.DataFrame(X_attack), Y_attack
 
 
@@ -183,7 +180,7 @@ def rank(predictions, metadata, real_key, min_trace_idx, max_trace_idx, last_key
 					print("Error: got a prediction with only zeroes ... this should not happen!")
 					sys.exit(-1)
 				min_proba = min(min_proba_predictions)
-				key_bytes_proba[i] += np.log(min_proba**2)
+				key_bytes_proba[i] += np.log(min_proba/2)
 	# Now we find where our real key candidate lies in the estimation.
 	# We do this by sorting our estimates and find the rank in the sorted array.
 	sorted_proba = np.array(list(map(lambda a : key_bytes_proba[a], key_bytes_proba.argsort()[::-1])))
