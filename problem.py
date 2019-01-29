@@ -13,19 +13,25 @@ import sys
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics import precision_score, recall_score
 
+from rampwf.score_types.base import BaseScoreType
+
+
 #-----------------------------------------------------------------------
 problem_title = 'Side Channel Attack Challenge'
-_prediction_label_names = [0, 1]
+_prediction_label_names = [i for i in range(256)]
 # A type (class) which will be used to create wrapper objects for y_pred
-Predictions = rw.prediction_types.make_multiclass(
-	label_names=_prediction_label_names)
+Predictions = rw.prediction_types.make_multiclass(_prediction_label_names)
 
 # An object implementing the workflow
+
+		
+
+
 workflow = rw.workflows.FeatureExtractorClassifier()
 
 #-----------------------------------------------------------------------
 # Define custom score metrics for the churner class
-class AUTR(rw.score_types.classifier_base.ClassifierBaseScoreType):
+class AUTR(BaseScoreType):
 
 	def __init__(self, name='autr', precision=2):
 		self.name = name
@@ -34,10 +40,11 @@ class AUTR(rw.score_types.classifier_base.ClassifierBaseScoreType):
 	def __call__(self, y_true, y_pred):
 		(_, Metadata_attack) = load_ascad( os.path.join(".", 'data', _file),load_metadata=True)[2]
 
-		return rannking(y_pred, y_pred, len(y_pred))
+		return rannking(y_pred, Metadata_attack, len(Metadata_attack))
 
+score = AUTR()
 
-score_types = [AUTR]
+score_types = [score]
 
 #-----------------------------------------------------------------------
 def get_cv(X, y):
@@ -93,53 +100,8 @@ def check_file_exists(file_path):
 
 
 
-def rank(predictions, metadata, real_key, min_trace_idx, max_trace_idx, last_key_bytes_proba):
-	# Compute the rank
-	if len(last_key_bytes_proba) == 0:
-		key_bytes_proba = np.zeros(256)
-	else:
-		# This is not the first rank we compute: we optimize things by using the
-		# previous computations to save time!
-		key_bytes_proba = last_key_bytes_proba
-
-	for p in range(0, max_trace_idx-min_trace_idx):
-		# Go back from the class to the key byte. '2' is the index of the byte (third byte) of interest.
-		plaintext = metadata[min_trace_idx + p]['plaintext'][2]
-		for i in range(0, 256):
-			# Our candidate key byte probability is the sum of the predictions logs
-			proba = predictions[p][AES_Sbox[plaintext ^ i]]
-			if proba != 0:
-				key_bytes_proba[i] += np.log(proba)
-			else:
-				# We do not want an -inf here, put a very small epsilon
-				# that correspondis to a power of our min non zero proba
-				min_proba_predictions = predictions[p][np.array(predictions[p]) != 0]
-				if len(min_proba_predictions) == 0:
-					print("Error: got a prediction with only zeroes ... this should not happen!")
-					sys.exit(-1)
-				min_proba = min(min_proba_predictions)
-				key_bytes_proba[i] += np.log(min_proba**2)
-	# Now we find where our real key candidate lies in the estimation.
-	# We do this by sorting our estimates and find the rank in the sorted array.
-	sorted_proba = np.array(list(map(lambda a : key_bytes_proba[a], key_bytes_proba.argsort()[::-1])))
-	real_key_rank = np.where(sorted_proba == key_bytes_proba[real_key])[0][0]
-	return (real_key_rank, key_bytes_proba)
 
 
-
-
-def full_ranks(predictions, metadata, min_trace_idx =0 , max_trace_idx=200, rank_step=10):
-	# Real key byte value that we will use. '2' is the index of the byte (third byte) of interest.
-	real_key = metadata[0]['key'][2]
-	# Check for overflow
-	
-	index = np.arange(min_trace_idx+rank_step, max_trace_idx, rank_step)
-	f_ranks = np.zeros((len(index), 2), dtype=np.uint32)
-	key_bytes_proba = []
-	for t, i in zip(index, range(0, len(index))):
-		real_key_rank, key_bytes_proba = rank(predictions[t-rank_step:t], metadata, real_key, t-rank_step, t, key_bytes_proba)
-		f_ranks[i] = [t - min_trace_idx, real_key_rank]
-	return f_ranks
 
 
 
@@ -174,3 +136,56 @@ def rannking(predictions, metadata, num_traces=2000):
 	# We plot the results
 	return sum([ranks[i][1] for i in range(0, ranks.shape[0])])
 	
+
+
+
+
+
+
+def full_ranks(predictions, metadata, min_trace_idx =0 , max_trace_idx=200, rank_step=10):
+	# Real key byte value that we will use. '2' is the index of the byte (third byte) of interest.
+	real_key = metadata[0]['key'][2]
+	# Check for overflow
+	
+	index = np.arange(min_trace_idx+rank_step, max_trace_idx, rank_step)
+	f_ranks = np.zeros((len(index), 2), dtype=np.uint32)
+	key_bytes_proba = []
+	for t, i in zip(index, range(0, len(index))):
+		real_key_rank, key_bytes_proba = rank(predictions[t-rank_step:t], metadata, real_key, t-rank_step, t, key_bytes_proba)
+		f_ranks[i] = [t - min_trace_idx, real_key_rank]
+	return f_ranks
+
+
+
+
+def rank(predictions, metadata, real_key, min_trace_idx, max_trace_idx, last_key_bytes_proba):
+	# Compute the rank
+	if len(last_key_bytes_proba) == 0:
+		key_bytes_proba = np.zeros(256)
+	else:
+		# This is not the first rank we compute: we optimize things by using the
+		# previous computations to save time!
+		key_bytes_proba = last_key_bytes_proba
+
+	for p in range(0, max_trace_idx-min_trace_idx):
+		# Go back from the class to the key byte. '2' is the index of the byte (third byte) of interest.
+		plaintext = metadata[min_trace_idx + p]['plaintext'][2]
+		for i in range(0, 256):
+			# Our candidate key byte probability is the sum of the predictions logs
+			proba = predictions[p][AES_Sbox[plaintext ^ i]]
+			if proba != 0:
+				key_bytes_proba[i] += np.log(proba)
+			else:
+				# We do not want an -inf here, put a very small epsilon
+				# that correspondis to a power of our min non zero proba
+				min_proba_predictions = predictions[p][np.array(predictions[p]) != 0]
+				if len(min_proba_predictions) == 0:
+					print("Error: got a prediction with only zeroes ... this should not happen!")
+					sys.exit(-1)
+				min_proba = min(min_proba_predictions)
+				key_bytes_proba[i] += np.log(min_proba**2)
+	# Now we find where our real key candidate lies in the estimation.
+	# We do this by sorting our estimates and find the rank in the sorted array.
+	sorted_proba = np.array(list(map(lambda a : key_bytes_proba[a], key_bytes_proba.argsort()[::-1])))
+	real_key_rank = np.where(sorted_proba == key_bytes_proba[real_key])[0][0]
+	return (real_key_rank, key_bytes_proba)
