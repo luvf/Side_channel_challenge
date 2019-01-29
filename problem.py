@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import rampwf as rw
 import h5py
-
+import matplotlib.pyplot as plt
 
 import os.path
 import sys
@@ -24,7 +24,7 @@ Predictions = rw.prediction_types.make_multiclass(_prediction_label_names)
 
 # An object implementing the workflow
 
-		
+
 
 
 workflow = rw.workflows.FeatureExtractorClassifier()
@@ -32,15 +32,16 @@ workflow = rw.workflows.FeatureExtractorClassifier()
 #-----------------------------------------------------------------------
 # Define custom score metrics for the churner class
 class AUTR(BaseScoreType):
-
+	
 	def __init__(self, name='autr', precision=2):
 		self.name = name
 		self.precision = precision
+		self.rankings = None
 
 	def __call__(self, y_true, y_pred):
 		(_, Metadata_attack) = load_ascad( os.path.join(".", 'data', _file),load_metadata=True)[2]
-
-		return rannking(y_pred, Metadata_attack, len(Metadata_attack))
+		autr_score, self.rankings = rannking(y_pred, Metadata_attack, len(Metadata_attack))
+		return autr_score
 
 score = AUTR()
 
@@ -53,7 +54,7 @@ def get_cv(X, y):
 	return cv.split(X,y)
 
 def _read_data(path, filename = "ASCAD.h5"):
-	return 
+	return
 
 _file = "ASCAD.h5"
 
@@ -133,9 +134,8 @@ def rannking(predictions, metadata, num_traces=2000):
 	# Load model
 	# We test the rank over traces of the Attack dataset, with a step of 10 traces
 	ranks = full_ranks(predictions, metadata, 0, num_traces, 10)
-	# We plot the results
-	return sum([ranks[i][1] for i in range(0, ranks.shape[0])])
-	
+	return sum([ranks[i][1] for i in range(0, ranks.shape[0])]), ranks
+
 
 
 
@@ -146,7 +146,7 @@ def full_ranks(predictions, metadata, min_trace_idx =0 , max_trace_idx=200, rank
 	# Real key byte value that we will use. '2' is the index of the byte (third byte) of interest.
 	real_key = metadata[0]['key'][2]
 	# Check for overflow
-	
+
 	index = np.arange(min_trace_idx+rank_step, max_trace_idx, rank_step)
 	f_ranks = np.zeros((len(index), 2), dtype=np.uint32)
 	key_bytes_proba = []
