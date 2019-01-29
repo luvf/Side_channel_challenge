@@ -32,16 +32,17 @@ workflow = rw.workflows.FeatureExtractorClassifier()
 #-----------------------------------------------------------------------
 # Define custom score metrics for the churner class
 class AUTR(BaseScoreType):
-	
+
 	def __init__(self, name='autr', precision=2):
 		self.name = name
 		self.precision = precision
 		self.rankings = None
+		self.max_autr = 256 * 1000
 
 	def __call__(self, y_true, y_pred):
 		(_, Metadata_attack) = load_ascad( os.path.join(".", 'data', _file),load_metadata=True)[2]
 		autr_score, self.rankings = rannking(y_pred, Metadata_attack, len(Metadata_attack))
-		return autr_score
+		return autr_score/self.max_autr
 
 score = AUTR()
 
@@ -59,14 +60,12 @@ def _read_data(path, filename = "ASCAD.h5"):
 _file = "ASCAD.h5"
 
 def get_train_data(path='.'):
-	x, y =  load_ascad(os.path.join(path, 'data', _file))[0]
-	print(y)
-	return pd.DataFrame(x),y
+	X, y =  load_ascad(os.path.join(path, 'data', _file))[0]
+	return pd.DataFrame(X),y
 
 def get_test_data(path='.'):
-	X_attack, Y_attack = load_ascad( os.path.join(path, 'data', _file))[1]
-	print(Y_attack)
-	return pd.DataFrame(X_attack), Y_attack
+	X_test, y_test = load_ascad( os.path.join(path, 'data', _file))[1]
+	return pd.DataFrame(X_test), y_test
 
 
 
