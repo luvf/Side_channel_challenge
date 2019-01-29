@@ -24,7 +24,7 @@ Predictions = rw.prediction_types.make_multiclass(_prediction_label_names)
 
 # An object implementing the workflow
 
-
+		
 
 
 workflow = rw.workflows.FeatureExtractorClassifier()
@@ -53,16 +53,18 @@ def get_cv(X, y):
 	return cv.split(X,y)
 
 def _read_data(path, filename = "ASCAD.h5"):
-	return
+	return 
 
 _file = "ASCAD.h5"
 
 def get_train_data(path='.'):
 	x, y =  load_ascad(os.path.join(path, 'data', _file))[0]
+	print(y)
 	return pd.DataFrame(x),y
 
 def get_test_data(path='.'):
 	X_attack, Y_attack = load_ascad( os.path.join(path, 'data', _file))[1]
+	print(Y_attack)
 	return pd.DataFrame(X_attack), Y_attack
 
 
@@ -133,7 +135,7 @@ def rannking(predictions, metadata, num_traces=2000):
 	ranks = full_ranks(predictions, metadata, 0, num_traces, 10)
 	# We plot the results
 	return sum([ranks[i][1] for i in range(0, ranks.shape[0])])
-
+	
 
 
 
@@ -144,7 +146,7 @@ def full_ranks(predictions, metadata, min_trace_idx =0 , max_trace_idx=200, rank
 	# Real key byte value that we will use. '2' is the index of the byte (third byte) of interest.
 	real_key = metadata[0]['key'][2]
 	# Check for overflow
-
+	
 	index = np.arange(min_trace_idx+rank_step, max_trace_idx, rank_step)
 	f_ranks = np.zeros((len(index), 2), dtype=np.uint32)
 	key_bytes_proba = []
