@@ -36,11 +36,13 @@ class AUTR(BaseScoreType):
 		self.accuracy = None
 		self.rankings = None
 		self.max_autr = 256 * 1000
+		self.precision = 2
 
 	def __call__(self, y_true, y_pred):
 		(_, Metadata_attack) = load_ascad( os.path.join(".", 'data', _file),load_metadata=True)[2]
 		autr_score, self.rankings = rannking(y_pred, Metadata_attack, len(Metadata_attack))
-		self.accuracy = accuracy_score(y_true, np.argmax(y_pred, axis=1))
+		#print(np.argmax(y_pred, axis=1))
+		#self.accuracy = accuracy_score(y_true, np.argmax(y_pred, axis=1))
 
 		return autr_score/self.max_autr
 
@@ -170,5 +172,7 @@ def rank(predictions, metadata, real_key, min_trace_idx, max_trace_idx, last_key
 	# Now we find where our real key candidate lies in the estimation.
 	# We do this by sorting our estimates and find the rank in the sorted array.
 	sorted_proba = np.array(list(map(lambda a : key_bytes_proba[a], key_bytes_proba.argsort()[::-1])))
-	real_key_rank = np.where(sorted_proba == key_bytes_proba[real_key])[0][0]
+	real_key_rank = np.where(sorted_proba == key_bytes_proba[real_key])[-1][-1]
+	#print(np.where(sorted_proba == key_bytes_proba[real_key]))
+	#print("aa")
 	return (real_key_rank, key_bytes_proba)

@@ -9,11 +9,14 @@ import numpy as np
 
 class Classifier(BaseEstimator):
     def __init__(self):
-        self.epochs=200
+        self.epochs=3
         self.batch_size=100
         self.nodes = 200
+        layer_nb =0
         self.model = Sequential()
         self.model.add(Dense(self.nodes, input_dim=700, activation='relu'))
+        for i in range(layer_nb-2):
+            self.model.add(Dense(200, activation='relu'))
         self.model.add(Dense(256, activation='softmax'))
         self.optimizer = RMSprop(lr=0.00001)
         self.model.compile(loss='categorical_crossentropy', optimizer=self.optimizer, metrics=['accuracy'])

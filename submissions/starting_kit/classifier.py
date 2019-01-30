@@ -13,6 +13,7 @@ class Classifier(BaseEstimator):
         #self.clf.fit(X, y)
 
     def predict_proba(self, X):
-        return np.zeros((len(X),256))+1
+        out = np.zeros((len(X),256))+1/256
+        return out
         #y_pred_proba = self.clf.predict_proba(X)
         #return y_pred_proba
