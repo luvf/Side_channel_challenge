@@ -5,3 +5,4 @@ seaborn
 scikit-learn
 ramp-workflow
 h5py
+keras
