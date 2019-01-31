@@ -10,40 +10,112 @@ import matplotlib.pyplot as plt
 import os.path
 import sys
 
-from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.model_selection import StratifiedShuffleSplit,ShuffleSplit
 from sklearn.metrics import accuracy_score, recall_score
 
 from rampwf.score_types.base import BaseScoreType
 
+from rampwf.workflows import FeatureExtractorClassifier
 
 #-----------------------------------------------------------------------
 problem_title = 'Side Channel Attack Challenge'
 _prediction_label_names = [i for i in range(256)]
 # A type (class) which will be used to create wrapper objects for y_pred
-Predictions = rw.prediction_types.make_multiclass(_prediction_label_names)
+
+
+
+
+
+
+def _myInit(self, y_pred=None, y_true=None, n_samples=None):#we have to do that to let pass the y_true
+	if y_pred is not None:
+		self.y_pred = np.array(y_pred)
+		self.check_y_pred_dimensions()#bypass thisone 
+	elif y_true is not None:
+		self.y_pred = np.array(y_true)
+	elif n_samples is not None:
+		self.y_pred = np.empty((n_samples, self.n_columns), dtype=float)
+		self.y_pred.fill(np.nan)
+		self.check_y_pred_dimensions()#bypass thisone 
+
+	else:
+		raise ValueError(
+			'Missing init argument: y_pred, y_true, or n_samples')
+
+
+
+def make_multiclass(label_names=[]):
+	Predictions = type(
+		'Predictions',
+		(rw.prediction_types.make_multiclass(_prediction_label_names),),
+		{
+		 '__init__': _myInit,
+		})
+	return Predictions
+
+
+
+
+
+Predictions = make_multiclass(_prediction_label_names)
+
+
+#Predictions = rw.prediction_types.make_multiclass(_prediction_label_names)
 
 # An object implementing the workflow
 
-workflow = rw.workflows.FeatureExtractorClassifier()
+class OurFeClf(FeatureExtractorClassifier):
+	"""docstring for OurFeClf"""
+	def __init__(self, workflow_element_names=['feature_extractor', 'classifier']):
+		super(OurFeClf, self).__init__(workflow_element_names)
+
+	def train_submission(self, module_path, X_df, y_array, train_is=None):
+		if train_is is None:
+			train_is = slice(None, None, None)
+		#y_array2 = y_array[:,0] 
+		fe = self.feature_extractor_workflow.train_submission(module_path, X_df, y_array[:,0] , train_is)
+		X_train_array = self.feature_extractor_workflow.test_submission(fe, X_df.iloc[train_is])
+		clf = self.classifier_workflow.train_submission(module_path, X_train_array, y_array[train_is,0])
+		return fe, clf
+
+	def test_submission(self, trained_model, X_df):
+		fe, clf = trained_model
+		X_test_array = self.feature_extractor_workflow.test_submission(
+			fe, X_df)
+		y_proba = self.classifier_workflow.test_submission(clf, X_test_array)
+		return y_proba
+
+
+workflow = OurFeClf()
 
 #-----------------------------------------------------------------------
 # Define custom score metrics for the churner class
 class AUTR(BaseScoreType):
-
-	
 	def __init__(self, name='autr'):
 		self.name = name
 		self.accuracy = None
 		self.rankings = None
 		self.max_autr = 256 * 1000
 		self.precision = 2
+		self.is_lower_the_better = True 
+		self.maximum = 1.0
+		self.minimum = 0.0
+		self.worse = 1.0
+
+
+	def score_function(self, ground_truths, predictions, valid_indexes=None):
+		if valid_indexes is None:
+			valid_indexes = slice(None, None, None)
+		y_true = ground_truths.y_pred[valid_indexes]
+		#print(ground_truths)
+		y_pred = predictions.y_pred[valid_indexes]
+		return self.__call__(y_true, y_pred)
+
 
 	def __call__(self, y_true, y_pred):
-		(_, Metadata_attack) = load_ascad( os.path.join(".", 'data', _file),load_metadata=True)[2]
-		autr_score, self.rankings = rannking(y_pred, Metadata_attack, len(Metadata_attack))
-		#print(np.argmax(y_pred, axis=1))
+		#(_, Metadata_attack) = load_ascad( os.path.join(".", 'data', _file),load_metadata=True)[2]
+		autr_score, self.rankings = rannking(y_pred, y_true, len(y_true))
 		#self.accuracy = accuracy_score(y_true, np.argmax(y_pred, axis=1))
-
 		return autr_score/self.max_autr
 
 
@@ -54,21 +126,28 @@ score_types = [score]
 #-----------------------------------------------------------------------
 def get_cv(X, y):
 	"""Returns stratified randomized folds."""
-	cv = StratifiedShuffleSplit(n_splits=10, test_size=0.25, random_state=57)
-	return cv.split(X,y)
+	cv = ShuffleSplit(n_splits=10, test_size=0.25, random_state=57)
+	#cv =ShuffleSplit(n_splits=5)
+	k= cv.split(X,y)
+	return k
+
 
 def _read_data(path, filename = "ASCAD.h5"):
 	pass
 
 _file = "ASCAD.h5"
 
+
+def concat(y, metadata):
+	return np.stack((y, metadata["key"][:,2] ,metadata["plaintext"][:,2]), axis=-1)
+
 def get_train_data(path='.'):
-	X, y =  load_ascad(os.path.join(path, 'data', _file))[0]
-	return pd.DataFrame(X),y
+	(X, y), _, (meta,_) =  load_ascad(os.path.join(path, 'data', _file),load_metadata=True)
+	return pd.DataFrame(X), concat(y, meta)
 
 def get_test_data(path='.'):
-	X_test, y_test = load_ascad( os.path.join(path, 'data', _file))[1]
-	return pd.DataFrame(X_test), y_test
+	_, (X_test, y_test) , (_,meta) = load_ascad( os.path.join(path, 'data', _file), load_metadata=True)
+	return pd.DataFrame(X_test), concat(y_test,meta)
 
 AES_Sbox = np.array([
 			0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -131,7 +210,7 @@ def rannking(predictions, metadata, num_traces=2000):
 
 def full_ranks(predictions, metadata, min_trace_idx =0 , max_trace_idx=200, rank_step=10):
 	# Real key byte value that we will use. '2' is the index of the byte (third byte) of interest.
-	real_key = metadata[0]['key'][2]
+	real_key = metadata[0][1]
 	# Check for overflow
 
 	index = np.arange(min_trace_idx+rank_step, max_trace_idx, rank_step)
@@ -154,10 +233,10 @@ def rank(predictions, metadata, real_key, min_trace_idx, max_trace_idx, last_key
 
 	for p in range(0, max_trace_idx-min_trace_idx):
 		# Go back from the class to the key byte. '2' is the index of the byte (third byte) of interest.
-		plaintext = metadata[min_trace_idx + p]['plaintext'][2]
+		plaintext = metadata[min_trace_idx + p][2]
 		for i in range(0, 256):
 			# Our candidate key byte probability is the sum of the predictions logs
-			proba = predictions[p][AES_Sbox[plaintext ^ i]]
+			proba = predictions[p][AES_Sbox[int(plaintext) ^ i]]
 			if proba != 0:
 				key_bytes_proba[i] += np.log(proba)
 			else:
