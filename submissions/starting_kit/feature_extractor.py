@@ -20,13 +20,13 @@ class FeatureExtractor(BaseEstimator, TransformerMixin):
         new_X = X.copy()
         new_X = np.concatenate([new_X.values[:,i-5:i+5] for i in self.peaks_indices], axis=1)
         # print(new_X.shape)
-        if not self.fitted:
-            self.mean_vectors = get_mean_vectors(new_X, self.y)
-            self.fitted = True
+        # if not self.fitted:
+        #     self.mean_vectors = get_mean_vectors(new_X, self.y)
+        #     self.fitted = True
         #pca_X = self.pca.transform(new_X)
         #new_X = pca_X
-        dist_X = np.abs(pairwise_distances(new_X, self.mean_vectors, metric='euclidean'))
-        new_X = np.concatenate((new_X, dist_X), axis=1)
+        #dist_X = np.abs(pairwise_distances(new_X, self.mean_vectors, metric='euclidean'))
+        #new_X = np.concatenate((new_X, dist_X), axis=1)
         return new_X
 
 def get_mean_vectors(X, y):
