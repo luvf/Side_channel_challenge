@@ -23,10 +23,6 @@ _prediction_label_names = [i for i in range(256)]
 # A type (class) which will be used to create wrapper objects for y_pred
 
 
-
-
-
-
 def _myInit(self, y_pred=None, y_true=None, n_samples=None):#we have to do that to let pass the y_true
 	if y_pred is not None:
 		self.y_pred = np.array(y_pred)
@@ -43,7 +39,6 @@ def _myInit(self, y_pred=None, y_true=None, n_samples=None):#we have to do that 
 			'Missing init argument: y_pred, y_true, or n_samples')
 
 
-
 def make_multiclass(label_names=[]):
 	Predictions = type(
 		'Predictions',
@@ -52,9 +47,6 @@ def make_multiclass(label_names=[]):
 		 '__init__': _myInit,
 		})
 	return Predictions
-
-
-
 
 
 Predictions = make_multiclass(_prediction_label_names)
@@ -128,7 +120,7 @@ def get_cv(X, y):
 	"""Returns stratified randomized folds."""
 	cv = ShuffleSplit(n_splits=10, test_size=0.25, random_state=57)
 	#cv =ShuffleSplit(n_splits=5)
-	k= cv.split(X,y)
+	k = cv.split(X,y)
 	return k
 
 

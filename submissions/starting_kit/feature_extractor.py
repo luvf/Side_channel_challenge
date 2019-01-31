@@ -27,11 +27,9 @@ class FeatureExtractor(BaseEstimator, TransformerMixin):
         #new_X = pca_X
         dist_X = np.abs(pairwise_distances(new_X, self.mean_vectors, metric='euclidean'))
         new_X = np.concatenate((new_X, dist_X), axis=1)
-        #print('FeatureExtractor debug : new X shape : '+str(new_X.shape))
         return new_X
 
 def get_mean_vectors(X, y):
-    print('FeatureExtractor debug : calling get_mean_vectors')
     mean_vectors = []
 
     for label in range(256):
@@ -41,5 +39,4 @@ def get_mean_vectors(X, y):
     return np.array(mean_vectors)
 
 def get_sum(v, metric='euclidean'):
-    print('FeatureExtractor debug : calling get_sum')
     return pairwise_distances(v, metric=metric).sum(axis=0)
