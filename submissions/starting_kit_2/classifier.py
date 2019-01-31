@@ -9,10 +9,10 @@ import numpy as np
 
 class Classifier(BaseEstimator):
     def __init__(self):
-        self.epochs=3
+        self.epochs=20
         self.batch_size=100
         self.nodes = 200
-        layer_nb =0
+        layer_nb = 6
         self.model = Sequential()
         self.model.add(Dense(self.nodes, input_dim=700, activation='relu'))
         for i in range(layer_nb-2):
